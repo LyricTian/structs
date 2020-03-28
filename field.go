@@ -84,6 +84,42 @@ func (f *Field) Set(val interface{}) error {
 	return nil
 }
 
+// Set2 sets the field to given value v. It returns an error if the field is not
+// settable (not addressable or not exported) or if the given value's type
+// doesn't match the fields type.
+func (f *Field) Set2(val interface{}) error {
+	// we can't set unexported fields, so be sure this field is exported
+	if !f.IsExported() {
+		return errNotExported
+	}
+
+	// do we get here? not sure...
+	if !f.value.CanSet() {
+		return errNotSettable
+	}
+
+	given := reflect.Indirect(reflect.ValueOf(val))
+
+	vkind := f.value.Kind()
+	if f.value.Kind() == reflect.Ptr {
+		vkind = f.value.Type().Elem().Kind()
+	}
+
+	if vkind != given.Kind() {
+		return fmt.Errorf("wrong kind. got: %s want: %s", given.Kind(), f.value.Kind())
+	}
+
+	if f.value.Kind() == reflect.Ptr {
+		v := reflect.New(given.Type())
+		v.Elem().Set(given)
+		f.value.Set(v)
+	} else {
+		f.value.Set(given)
+	}
+
+	return nil
+}
+
 // Zero sets the field to its zero value. It returns an error if the field is not
 // settable (not addressable or not exported).
 func (f *Field) Zero() error {
